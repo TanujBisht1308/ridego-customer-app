@@ -103,34 +103,34 @@ class RideController extends ChangeNotifier {
   // against the API on splash, or an expired 15-min access token bounces
   // the user back to login even though they're still logged in.)
   Future<void> loadSession() async {
-    final accessToken = await SecureStorageService.instance.read('access_token');
-    final refreshToken = await SecureStorageService.instance.read('refresh_token');
+  final accessToken = await SecureStorageService.instance.read('access_token');
+  final refreshToken = await SecureStorageService.instance.read('refresh_token');
 
-    if (accessToken == null && refreshToken == null) {
-      isLoggedIn = false;
-      return;
-    }
-
-    final cached = await SecureStorageService.instance.read('cached_customer');
-    if (cached == null) {
-      isLoggedIn = false;
-      return;
-    }
-    if (isLoggedIn) {
-  final token = await SecureStorageService.instance.read('access_token');
-  if (token != null) SocketService.instance.connect(token);
-}
-
-    final data = jsonDecode(cached) as Map<String, dynamic>;
-    userName = data['fullName'] ?? userName;
-    userEmail = data['email'] ?? userEmail;
-    userPhone = data['phoneNumber'] ?? userPhone;
-    customerId = data['id'];
-    isProfileComplete = data['isProfileComplete'] ?? false;
-    walletBalance = (data['walletBalance'] as num?)?.toDouble() ?? walletBalance;
-    isLoggedIn = true;
+  if (accessToken == null && refreshToken == null) {
+    isLoggedIn = false;
+    return;
   }
 
+  final cached = await SecureStorageService.instance.read('cached_customer');
+  if (cached == null) {
+    isLoggedIn = false;
+    return;
+  }
+
+  final data = jsonDecode(cached) as Map<String, dynamic>;
+  userName = data['fullName'] ?? userName;
+  userEmail = data['email'] ?? userEmail;
+  userPhone = data['phoneNumber'] ?? userPhone;
+  customerId = data['id'];
+  isProfileComplete = data['isProfileComplete'] ?? false;
+  walletBalance = (data['walletBalance'] as num?)?.toDouble() ?? walletBalance;
+  isLoggedIn = true;
+
+  // Connect socket AFTER isLoggedIn is confirmed true
+  if (accessToken != null) {
+    SocketService.instance.connect(accessToken);
+  }
+}
   Future<void> logoutSession() async {
     try {
       final refreshToken = await SecureStorageService.instance.read('refresh_token');
@@ -185,7 +185,7 @@ class RideController extends ChangeNotifier {
     rideType: 'Sedan',
     paymentMethod: 'Cash',
   );
-
+  String? rideOtp;
   DriverModel? assignedDriver;
   Map<String, double>? liveDriverPosition;
 
@@ -354,6 +354,7 @@ class RideController extends ChangeNotifier {
       final data = response.data['data'] as Map<String, dynamic>;
       activeRideId = data['rideId'];
       rideStatus = data['status'];
+      rideOtp = data['rideOtp'];
       activeRide = true;
       isLoading = false;
       notifyListeners();
@@ -369,11 +370,47 @@ class RideController extends ChangeNotifier {
   // Polls the active ride every 3s. Calls onStatusChange whenever the
   // status string changes, so screens can navigate themselves.
   void startPollingActiveRide(void Function(String status) onStatusChange) {
-    if (activeRideId == null) return;
-    SocketService.instance.watchRide(activeRideId!);
+  if (activeRideId == null) return;
+  SocketService.instance.watchRide(activeRideId!);
 
-    SocketService.instance.onRideUpdate((data) {
+  SocketService.instance.onRideUpdate((data) {
+    final newStatus = data['status'] as String;
+    if (data['rideOtp'] != null) rideOtp = data['rideOtp'];
+    if (data['driver'] != null) {
+      final d = data['driver'] as Map<String, dynamic>;
+      assignedDriver = DriverModel(
+        name: d['name'] ?? 'Driver',
+        rating: (d['rating'] ?? 5.0).toStringAsFixed(1),
+        vehicle: 'Assigned Vehicle',
+        vehicleNumber: d['vehicleNumber'] ?? '',
+        phone: d['phone'] ?? '',
+      );
+    }
+    if (data['finalFare'] != null) {
+      summary.fare = '₹${(data['finalFare'] as num).toStringAsFixed(0)}';
+    }
+    if (newStatus != rideStatus) {
+      rideStatus = newStatus;
+      notifyListeners();
+      onStatusChange(newStatus);
+    }
+  });
+
+  SocketService.instance.onDriverLocation((lat, lng) {
+    liveDriverPosition = {'lat': lat, 'lng': lng};
+    notifyListeners();
+  });
+
+  // Safety-net HTTP polling — catches status changes even if the socket
+  // silently failed to connect or dropped without reconnecting.
+  _pollTimer?.cancel();
+  _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+    if (activeRideId == null) return;
+    try {
+      final response = await _dio.get('${ApiConstants.rides}/$activeRideId');
+      final data = response.data['data'] as Map<String, dynamic>;
       final newStatus = data['status'] as String;
+      if (data['rideOtp'] != null) rideOtp = data['rideOtp'];
       if (data['driver'] != null) {
         final d = data['driver'] as Map<String, dynamic>;
         assignedDriver = DriverModel(
@@ -384,28 +421,25 @@ class RideController extends ChangeNotifier {
           phone: d['phone'] ?? '',
         );
       }
-      if (data['finalFare'] != null) {
-        summary.fare = '₹${(data['finalFare'] as num).toStringAsFixed(0)}';
-      }
+
       if (newStatus != rideStatus) {
         rideStatus = newStatus;
         notifyListeners();
         onStatusChange(newStatus);
       }
-    });
-
-    SocketService.instance.onDriverLocation((lat, lng) {
-      liveDriverPosition = {'lat': lat, 'lng': lng};
-      notifyListeners();
-    });
-  }
+    } catch (_) {
+      // ignore transient errors — will retry on next tick
+    }
+  });
+}
 
   void stopPollingActiveRide() {
-    if (activeRideId != null) {
-      SocketService.instance.unwatchRide(activeRideId!);
-    }
+  _pollTimer?.cancel();
+  _pollTimer = null;
+  if (activeRideId != null) {
+    SocketService.instance.unwatchRide(activeRideId!);
   }
-
+}
 
   Future<bool> cancelActiveRide() async {
     if (activeRideId == null) return false;
@@ -415,6 +449,7 @@ class RideController extends ChangeNotifier {
       rideStatus = 'cancelled';
       activeRideId = null;
       assignedDriver = null;
+      rideOtp = null;
       activeRide = false;
       notifyListeners();
       return true;
@@ -428,6 +463,7 @@ class RideController extends ChangeNotifier {
     stopPollingActiveRide();
     activeRideId = null;
     assignedDriver = null;
+    rideOtp = null;
     selectPayment(0);
     notifyListeners();
   }

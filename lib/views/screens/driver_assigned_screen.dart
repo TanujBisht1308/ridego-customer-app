@@ -69,7 +69,7 @@ class DriverAssignedScreen extends StatelessWidget {
           child: Column(
             children: [
               SectionCard(
-                color: AppColors.success.withValues(alpha: .08),
+                color: AppColors.success.withOpacity(.08),
                 child: Row(
                   children: const [
                     Icon(Icons.check_circle, color: AppColors.success),
@@ -81,6 +81,28 @@ class DriverAssignedScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 14),
+              if (RideController.instance.rideOtp != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text('Share this OTP with your driver',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      const SizedBox(height: 6),
+                      Text(
+                        RideController.instance.rideOtp!,
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 10),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 14),
               // Real map with driver marker
               RideMap(
