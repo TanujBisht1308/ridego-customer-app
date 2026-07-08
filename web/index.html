@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="RideGo Customer App">
+  <!-- Correct viewport + full-height html/body fixes the "content appears
+       small in the top-left corner" flash some browsers show before the
+       Flutter web canvas finishes its first resize pass. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#111111">
+
+  <title>RideGo</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #111111;
+    }
+    #app-loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111111;
+      color: #FFC400;
+      font-family: -apple-system, Roboto, sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+    }
+    flutter-view, flt-glass-pane {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+  <!-- TODO: Replace YOUR_GOOGLE_MAPS_API_KEY_HERE with your real key -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY_HERE"></script>
+</head>
+<body>
+  <div id="app-loading">RideGo</div>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

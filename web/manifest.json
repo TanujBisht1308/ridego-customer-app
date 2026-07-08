@@ -1,0 +1,12 @@
+{
+    "name": "RideGo Customer App",
+    "short_name": "RideGo",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#111111",
+    "theme_color": "#111111",
+    "description": "RideGo Customer App",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": []
+}
