@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "556796568202",
+    "project_id": "ridego-552bc",
+    "storage_bucket": "ridego-552bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:556796568202:android:11e33ad30b7d4b78e0c373",
+        "android_client_info": {
+          "package_name": "com.example.ridego_customer_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0FLnN8BMrMV6T4NYJE5IIA2a1khfYPl8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:556796568202:android:ed2202b641a4547de0c373",
+        "android_client_info": {
+          "package_name": "com.example.ridego_driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0FLnN8BMrMV6T4NYJE5IIA2a1khfYPl8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
