@@ -4,8 +4,7 @@ class ApiConstants {
   // Use the SAME local IP your driver app already uses (check its
   // api_constants.dart) — your laptop's IP on the network, not localhost,
   // since this runs on a real phone.
-  static const String baseUrl = 'http://192.168.0.194:8000/api';
-
+  static const String baseUrl = 'https://ridego-backend-production.up.railway.app/api';
   // Auth
   static const String sendOtp = '/customer/auth/send-otp';
   static const String verifyOtp = '/customer/auth/verify-otp';
