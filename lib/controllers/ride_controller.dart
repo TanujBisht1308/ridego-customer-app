@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../models/saved_place.dart';
 import '../core/constants/app_strings.dart';
 import '../models/driver_model.dart' hide VehicleOption;
 import '../models/payment_method.dart';
 import '../models/profile_menu_item.dart';
 import '../models/ride_summary.dart';
 import 'dart:async';
+import '../core/services/fcm_service.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/transaction_item.dart';
 import '../models/vehicle_option.dart';
@@ -162,6 +164,7 @@ class RideController extends ChangeNotifier {
     isProfileComplete = customer['isProfileComplete'] ?? false;
     walletBalance = (customer['walletBalance'] as num?)?.toDouble() ?? walletBalance;
     isLoggedIn = true;
+    FcmService.instance.initialize();
   }
 
   String _extractError(DioException e) {
@@ -731,6 +734,101 @@ class RideController extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       routePoints = []; // falls back to straight line in RideMap
+    }
+  }
+  // ---- Saved Places (backend-persisted) ----
+  List<SavedPlace> savedPlaces = [];
+  bool savedPlacesLoading = false;
+
+  Future<void> fetchSavedPlaces() async {
+    savedPlacesLoading = true;
+    notifyListeners();
+    try {
+      final response = await _dio.get('/customer/saved-places');
+      final data = response.data['data'] as List;
+      savedPlaces = data.map((e) => SavedPlace.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      // keep whatever was loaded before on failure
+    }
+    savedPlacesLoading = false;
+    notifyListeners();
+  }
+
+  Future<bool> addSavedPlace({
+    required String label,
+    required String address,
+    required double latitude,
+    required double longitude,
+    String icon = 'place',
+  }) async {
+    try {
+      final response = await _dio.post('/customer/saved-places', data: {
+        'label': label,
+        'address': address,
+        'latitude': latitude,
+        'longitude': longitude,
+        'icon': icon,
+      });
+      final created = SavedPlace.fromJson(response.data['data'] as Map<String, dynamic>);
+      savedPlaces = [...savedPlaces, created];
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateSavedPlace(
+    String id, {
+    String? label,
+    String? address,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final response = await _dio.put('/customer/saved-places/$id', data: {
+        if (label != null) 'label': label,
+        if (address != null) 'address': address,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      });
+      final updated = SavedPlace.fromJson(response.data['data'] as Map<String, dynamic>);
+      savedPlaces = savedPlaces.map((p) => p.id == id ? updated : p).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteSavedPlace(String id) async {
+    try {
+      await _dio.delete('/customer/saved-places/$id');
+      savedPlaces = savedPlaces.where((p) => p.id != id).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Resolves a place's real address + lat/lng without touching the
+  // active drop/summary state — used when saving a new place, not booking.
+  Future<Map<String, dynamic>?> resolvePlaceDetails(String placeId) async {
+    try {
+      final response = await _dio.get(ApiConstants.placesDetails, queryParameters: {
+        'placeId': placeId,
+        'sessionToken': _sessionToken(),
+      });
+      final data = response.data['data'] as Map<String, dynamic>;
+      _endPlacesSession();
+      return {
+        'address': data['address'] as String,
+        'latitude': (data['latitude'] as num).toDouble(),
+        'longitude': (data['longitude'] as num).toDouble(),
+      };
+    } catch (_) {
+      return null;
     }
   }
 }
